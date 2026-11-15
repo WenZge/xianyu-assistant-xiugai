@@ -31,7 +31,8 @@ const itemsLoading = ref(false)
 
 const showCreateDialog = ref(false)
 const createForm = ref({
-  aliasName: ''
+  aliasName: '',
+  scope: 'PRIVATE' as 'PRIVATE' | 'SHARED'
 })
 const createLoading = ref(false)
 
@@ -45,6 +46,8 @@ const addLoading = ref(false)
 
 const showAlertDialog = ref(false)
 const alertForm = ref({
+  scope: 'PRIVATE' as 'PRIVATE' | 'SHARED',
+  ownerId: null as number | null,
   alertEnabled: 0,
   alertThresholdType: 1,
   alertThresholdValue: 10,
@@ -174,12 +177,13 @@ const handleCreate = async () => {
   try {
     const res = await saveKamiConfig({
       xianyuAccountId: selectedAccountId.value,
-      aliasName: createForm.value.aliasName || '未命名'
+      aliasName: createForm.value.aliasName || '未命名',
+      scope: createForm.value.scope
     })
     if (res.code === 200) {
       toast.success('创建成功')
       showCreateDialog.value = false
-      createForm.value = { aliasName: '' }
+      createForm.value = { aliasName: '', scope: 'PRIVATE' }
       await loadKamiConfigs()
       if (res.data?.id) {
         selectedConfigId.value = res.data.id
@@ -304,6 +308,8 @@ const handleFilterChange = () => {
 const openAlertDialog = () => {
   if (!selectedConfig.value) return
   alertForm.value = {
+    scope: selectedConfig.value.scope || 'PRIVATE',
+    ownerId: selectedConfig.value.xianyuAccountId,
     alertEnabled: selectedConfig.value.alertEnabled || 0,
     alertThresholdType: selectedConfig.value.alertThresholdType || 1,
     alertThresholdValue: selectedConfig.value.alertThresholdValue || 10,
@@ -318,7 +324,8 @@ const handleSaveAlert = async () => {
   try {
     const res = await saveKamiConfig({
       id: selectedConfigId.value,
-      xianyuAccountId: selectedAccountId.value!,
+      xianyuAccountId: alertForm.value.ownerId || selectedAccountId.value!,
+      scope: alertForm.value.scope,
       aliasName: selectedConfig.value?.aliasName,
       alertEnabled: alertForm.value.alertEnabled,
       alertThresholdType: alertForm.value.alertThresholdType,
@@ -428,7 +435,7 @@ onMounted(async () => {
             class="config-card"
             @click="selectConfig(config)"
           >
-            <div class="config-card__name">{{ config.aliasName || `配置#${config.id}` }}</div>
+            <div class="config-card__name">{{ config.aliasName || `配置#${config.id}` }} <small>{{ config.scope === 'SHARED' ? '通用' : '账号私有' }}</small></div>
             <div class="config-card__stats">
               <span class="config-card__stat">总量 {{ config.totalCount }}</span>
               <span class="config-card__stat used">已用 {{ config.usedCount }}</span>
@@ -456,7 +463,7 @@ onMounted(async () => {
             <button class="btn-default btn-sm" @click="showAddDialog = true">添加</button>
             <button class="btn-primary btn-sm" @click="showImportDialog = true">批量导入</button>
             <button class="btn-success btn-sm" @click="openExportDialog">导出</button>
-            <button class="btn-warning btn-sm" @click="openAlertDialog">预警</button>
+            <button class="btn-warning btn-sm" @click="openAlertDialog">仓库设置</button>
           </div>
         </header>
 
@@ -541,7 +548,7 @@ onMounted(async () => {
             :class="{ 'config-card--active': selectedConfigId === config.id }"
             @click="selectConfig(config)"
           >
-            <div class="config-card__name">{{ config.aliasName || `配置#${config.id}` }}</div>
+            <div class="config-card__name">{{ config.aliasName || `配置#${config.id}` }} <small>{{ config.scope === 'SHARED' ? '通用' : '账号私有' }}</small></div>
             <div class="config-card__stats">
               <span class="config-card__stat">总量 {{ config.totalCount }}</span>
               <span class="config-card__stat used">已用 {{ config.usedCount }}</span>
@@ -564,7 +571,7 @@ onMounted(async () => {
                 <button class="btn-default" @click="showAddDialog = true">添加卡密</button>
                 <button class="btn-primary" @click="showImportDialog = true">批量导入</button>
                 <button class="btn-success" @click="openExportDialog">导出</button>
-                <button class="btn-warning" @click="openAlertDialog">预警配置</button>
+                <button class="btn-warning" @click="openAlertDialog">仓库设置</button>
               </div>
             </div>
 
@@ -648,6 +655,8 @@ onMounted(async () => {
                 <label class="form-label">别名</label>
                 <input v-model="createForm.aliasName" class="form-input" placeholder="请输入别名" maxlength="50" />
               </div>
+              <div class="form-group"><label>仓库范围</label><select v-model="createForm.scope" class="form-input"><option value="PRIVATE">当前账号私有</option><option value="SHARED">所有账号通用</option></select><p class="form-suffix">通用仓库可由所有账号的商品绑定，共用一份库存。</p>
+              </div>
             </div>
             <div class="modal-footer">
               <button class="btn btn-secondary" @click="showCreateDialog = false">取消</button>
@@ -696,15 +705,17 @@ onMounted(async () => {
         </div>
       </Transition>
 
-      <!-- 预警配置 -->
+      <!-- 仓库设置 -->
       <Transition name="modal">
         <div v-if="showAlertDialog" class="modal-overlay" @click.self="showAlertDialog = false">
           <div class="modal-container">
             <div class="modal-header">
-              <h2 class="modal-title">预警配置</h2>
+              <h2 class="modal-title">仓库设置</h2>
               <button class="modal-close" @click="showAlertDialog = false">×</button>
             </div>
             <div class="modal-body">
+              <div class="form-group"><label>仓库范围</label><select v-model="alertForm.scope" class="form-input"><option value="PRIVATE">账号私有</option><option value="SHARED">所有账号通用</option></select></div>
+              <div class="form-group"><label>{{alertForm.scope==='PRIVATE'?'所属账号':'管理账号'}}</label><select v-model="alertForm.ownerId" class="form-input"><option v-for="a in accounts" :key="a.id" :value="a.id">{{a.accountNote||a.unb}}</option></select><p class="form-suffix">改为私有前，请先解除其他账号的发货绑定。</p></div>
               <div class="form-row">
                 <label class="form-label">开启预警</label>
                 <label class="form-switch">

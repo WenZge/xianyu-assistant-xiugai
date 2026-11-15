@@ -32,4 +32,9 @@ class KamiDeliveryStrategyTest {
     @Test void templateWithoutCardPlaceholderCannotConsumeCard() {
         context.getDeliveryConfig().setKamiDeliveryTemplate("谢谢购买"); assertThrows(BusinessException.class, () -> strategy.resolve(context)); verify(stock,never()).acquireKami(any(),any());
     }
+    @Test void sharedWarehouseAllowsOtherAccountWithoutRelaxingPrivateCheck() {
+        var shared=new XianyuKamiConfig();shared.setXianyuAccountId(2L);shared.setScope("SHARED");when(stock.getConfig(10L)).thenReturn(shared);
+        var card=new XianyuKamiItem();card.setId(99L);card.setKamiContent("SHARED-CARD");when(stock.acquireKami(10L,"order")).thenReturn(card);
+        assertEquals("SHARED-CARD",strategy.resolve(context));verify(usage).insert(any(XianyuKamiUsageRecord.class));
+    }
 }

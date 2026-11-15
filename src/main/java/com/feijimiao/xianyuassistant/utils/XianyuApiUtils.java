@@ -290,7 +290,7 @@ public class XianyuApiUtils {
     private static String buildUrl(String apiName, Map<String, String> params) {
         StringBuilder url = new StringBuilder(BASE_URL);
         // API名称保持原样，不要替换点号
-        url.append(apiName).append("/1.0/");
+        url.append(apiName).append("/").append(params.getOrDefault("v", "1.0")).append("/");
         
         if (params != null && !params.isEmpty()) {
             url.append("?");

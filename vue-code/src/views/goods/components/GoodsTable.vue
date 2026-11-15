@@ -185,7 +185,7 @@ const handleImgError = (e: Event) => {
           </td>
           <td class="table__td table__td--sku">
             <span v-if="item.item.skuCount > 1" class="sku-count-tag">{{ item.item.skuCount }}规格</span>
-            <span v-else class="sku-count-tag sku-count-tag--single">1</span>
+            <span v-else class="sku-count-tag sku-count-tag--single">{{ item.item.skuCount === 1 ? '1规格' : '未识别' }}</span>
           </td>
           <td class="table__td table__td--status">
             <span

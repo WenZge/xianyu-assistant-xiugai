@@ -34,6 +34,8 @@ public class KamiConfigServiceImpl implements KamiConfigService {
     @Autowired
     private EmailNotifyService emailNotifyService;
 
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate db;
+
     private final ReentrantLock acquireLock = new ReentrantLock();
 
     private final ConcurrentHashMap<Long, ReentrantLock> configLocks = new ConcurrentHashMap<>();
@@ -57,6 +59,17 @@ public class KamiConfigServiceImpl implements KamiConfigService {
                 config.setTotalCount(0);
                 config.setUsedCount(0);
             }
+            String scope = reqDTO.getScope() == null ? (config.getScope() == null ? "PRIVATE" : config.getScope()) : reqDTO.getScope();
+            if (!java.util.Set.of("PRIVATE", "SHARED").contains(scope)) return ResultObject.failed("仓库范围只能是通用或账号私有");
+            Long owner = reqDTO.getXianyuAccountId();
+            if (owner == null || db.queryForObject("SELECT count(*) FROM xianyu_account WHERE id=?", Integer.class, owner) == 0)
+                return ResultObject.failed("请选择有效的所属账号");
+            if (reqDTO.getId() != null && "PRIVATE".equals(scope)) {
+                int otherBindings = db.queryForObject("SELECT count(*) FROM xianyu_goods_auto_delivery_config WHERE xianyu_account_id<>? AND instr(',' || replace(COALESCE(kami_config_ids,''),' ','') || ',', ',' || ? || ',')>0", Integer.class, owner, reqDTO.getId());
+                if (otherBindings > 0) return ResultObject.failed("其他账号仍绑定此仓库，请先解除绑定，再改为账号私有");
+            }
+            config.setScope(scope);
+            config.setXianyuAccountId(owner);
             if (reqDTO.getAliasName() != null) {
                 config.setAliasName(reqDTO.getAliasName());
             }
@@ -357,6 +370,7 @@ public class KamiConfigServiceImpl implements KamiConfigService {
         KamiConfigRespDTO dto = new KamiConfigRespDTO();
         dto.setId(config.getId());
         dto.setXianyuAccountId(config.getXianyuAccountId());
+        dto.setScope(config.getScope() == null ? "PRIVATE" : config.getScope());
         dto.setAliasName(config.getAliasName());
         dto.setAlertEnabled(config.getAlertEnabled());
         dto.setAlertThresholdType(config.getAlertThresholdType());

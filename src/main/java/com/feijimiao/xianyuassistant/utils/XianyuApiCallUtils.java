@@ -62,6 +62,11 @@ public class XianyuApiCallUtils {
         return callApiWithRetry(accountId, apiName, dataMap, cookiesStr, extraHeaders, extraQueryParams, 0);
     }
     
+    /** 识别备用接口使用单次请求，仍处理响应 Cookie，但不主动刷新重试。 */
+    public ApiCallResult callOnce(Long accountId, String apiName, Map<String, Object> data, String cookie) {
+        return callApiWithRetry(accountId, apiName, data, cookie, null, null, MAX_RETRY_COUNT);
+    }
+
     private ApiCallResult callApiWithRetry(Long accountId, String apiName,
                                            Map<String, Object> dataMap, String cookiesStr,
                                            int retryCount) {

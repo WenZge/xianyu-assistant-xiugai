@@ -11,6 +11,9 @@ public class KamiConfigRespDTO {
 
     private Long xianyuAccountId;
 
+    /** PRIVATE:账号私有；SHARED:所有账号通用。旧仓库默认为私有。 */
+    private String scope;
+
     private String aliasName;
 
     private Integer alertEnabled;

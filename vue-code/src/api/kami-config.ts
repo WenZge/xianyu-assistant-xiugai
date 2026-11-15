@@ -3,6 +3,7 @@ import { request } from '@/utils/request';
 export interface KamiConfig {
   id: number;
   xianyuAccountId: number;
+  scope?: 'PRIVATE' | 'SHARED';
   aliasName: string;
   alertEnabled?: number;
   alertThresholdType?: number;
@@ -29,6 +30,7 @@ export interface KamiItem {
 export interface SaveKamiConfigReq {
   id?: number;
   xianyuAccountId: number;
+  scope?: 'PRIVATE' | 'SHARED';
   aliasName?: string;
   alertEnabled?: number;
   alertThresholdType?: number;

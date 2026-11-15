@@ -25,6 +25,14 @@ public class GoodsSkuController {
     @Autowired
     private GoodsSkuPropertyService goodsSkuPropertyService;
 
+    @Autowired private com.feijimiao.xianyuassistant.service.SkuRecognitionService recognition;
+
+    @PostMapping("/recognize")
+    public ResultObject<List<XianyuGoodsSku>> recognize(@RequestParam Long xianyuAccountId, @RequestParam String xyGoodsId,
+                                                        @RequestParam(defaultValue = "seller") String source) {
+        return ResultObject.success(recognition.recognize(xianyuAccountId, xyGoodsId, source));
+    }
+
     @PostMapping("/list")
     public ResultObject<List<XianyuGoodsSku>> listByGoodsId(@RequestParam("xyGoodsId") String xyGoodsId, @RequestParam(required = false) Long xianyuAccountId) {
         try {

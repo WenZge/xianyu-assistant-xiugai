@@ -11,6 +11,6 @@ import java.util.List;
 @Mapper
 public interface XianyuKamiConfigMapper extends BaseMapper<XianyuKamiConfig> {
 
-    @Select("SELECT * FROM xianyu_kami_config WHERE xianyu_account_id = #{xianyuAccountId} ORDER BY create_time DESC")
+    @Select("SELECT * FROM xianyu_kami_config WHERE (xianyu_account_id = #{xianyuAccountId} OR scope = 'SHARED') ORDER BY create_time DESC")
     List<XianyuKamiConfig> findByAccountId(@Param("xianyuAccountId") Long xianyuAccountId);
 }

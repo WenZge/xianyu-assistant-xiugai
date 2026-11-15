@@ -1,3 +1,5 @@
+> 本地增强版新增 SKU 识别、自动擦亮、发货保护、黑名单及通用/私有卡密仓库，入口和升级步骤见 [功能使用说明](docs/SKU_POLISH_AND_DELIVERY_PROTECTION.md)。
+
 # 闲鱼自动化管理系统
 
 <div align="center">

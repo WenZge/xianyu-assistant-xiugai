@@ -75,6 +75,12 @@ const router = createRouter({
       meta: { title: '卡密配置', icon: '🔑' }
     },
     {
+      path: '/automation',
+      name: 'automation',
+      component: () => import('@/views/automation/index.vue'),
+      meta: { title: '运营与发货保护', icon: '🛡️' }
+    },
+    {
       path: '/buyer-interaction',
       name: 'buyer-interaction',
       component: () => import('@/views/buyer-interaction/index.vue'),

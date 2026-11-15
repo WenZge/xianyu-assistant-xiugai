@@ -44,7 +44,7 @@ public class AutoDeliveryConfigServiceImpl implements AutoDeliveryConfigService 
             if (reqDTO.getDeliveryMode() == 2) {
                 for (String id : reqDTO.getKamiConfigIds().split(",")) {
                     var warehouse = kamiConfigService.getConfig(Long.parseLong(id.trim()));
-                    if (warehouse == null || !reqDTO.getXianyuAccountId().equals(warehouse.getXianyuAccountId()))
+                    if (warehouse == null || (!"SHARED".equals(warehouse.getScope()) && !reqDTO.getXianyuAccountId().equals(warehouse.getXianyuAccountId())))
                         return ResultObject.failed("卡密仓库不属于当前闲鱼账号");
                 }
                 if (reqDTO.getKamiDeliveryTemplate() != null && !reqDTO.getKamiDeliveryTemplate().isBlank() && !reqDTO.getKamiDeliveryTemplate().contains("{kmKey}"))

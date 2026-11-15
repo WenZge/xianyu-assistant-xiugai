@@ -26,7 +26,7 @@ class DeliveryPlanServiceTest {
     static class Config {
         @Bean DataSource dataSource() { return new SingleConnectionDataSource("jdbc:sqlite::memory:", true); }
         @Bean PlatformTransactionManager transactionManager(DataSource ds) { return new DataSourceTransactionManager(ds); }
-        @Bean DeliveryPlanService plans(OrderDetailFetcher f, DeliveryConfigSelector s, DeliveryStrategyResolver r, XianyuGoodsOrderMapper o) { return new DeliveryPlanService(f,s,r,o); }
+        @Bean DeliveryPlanService plans(OrderDetailFetcher f, DeliveryConfigSelector s, DeliveryStrategyResolver r, XianyuGoodsOrderMapper o, DeliveryProtectionService p) { return new DeliveryPlanService(f,s,r,o,p); }
     }
     @BeforeEach void setup() {
         context = new AnnotationConfigApplicationContext();
@@ -34,6 +34,7 @@ class DeliveryPlanServiceTest {
         context.getBeanFactory().registerSingleton("selector", mock(DeliveryConfigSelector.class));
         context.getBeanFactory().registerSingleton("resolver", mock(DeliveryStrategyResolver.class));
         context.getBeanFactory().registerSingleton("orders", mock(XianyuGoodsOrderMapper.class));
+        context.getBeanFactory().registerSingleton("protection", mock(DeliveryProtectionService.class));
         context.register(Config.class); context.refresh();
         plans = context.getBean(DeliveryPlanService.class); resolver = context.getBean(DeliveryStrategyResolver.class); orders = context.getBean(XianyuGoodsOrderMapper.class);
         jdbc = new JdbcTemplate(context.getBean(DataSource.class)); jdbc.execute("CREATE TABLE reserved (id INTEGER)");
@@ -41,7 +42,7 @@ class DeliveryPlanServiceTest {
         when(context.getBean(OrderDetailFetcher.class).fetch(1L,"goods","order")).thenReturn(detail);
         var config = new XianyuGoodsAutoDeliveryConfig(); config.setDeliveryMode(2);
         when(context.getBean(DeliveryConfigSelector.class).select(1L,"goods","month")).thenReturn(config);
-        var existing = new XianyuGoodsOrder(); existing.setId(10L);
+        var existing = new XianyuGoodsOrder(); existing.setId(10L); existing.setXyGoodsId("goods"); existing.setBuyerUserId("buyer");
         when(orders.selectByAccountIdAndOrderId(1L,"order")).thenReturn(existing);
     }
     @AfterEach void teardown() { context.close(); }
@@ -64,7 +65,7 @@ class DeliveryPlanServiceTest {
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM reserved",Integer.class));
     }
     @Test void retryReusesOriginalReservedCardsWithoutAllocatingAgain() throws Exception {
-        var existing = new XianyuGoodsOrder(); existing.setId(10L);
+        var existing = new XianyuGoodsOrder(); existing.setId(10L); existing.setXyGoodsId("goods"); existing.setBuyerUserId("buyer");
         existing.setDeliveryPayload(new ObjectMapper().writeValueAsString(new DeliveryPlanService.Plan(List.of("ORIGINAL"),List.of(),false)));
         when(orders.selectByAccountIdAndOrderId(1L,"order")).thenReturn(existing);
         assertEquals("ORIGINAL",plans.prepare(1L,"goods","order",null,null,true).text());
@@ -75,6 +76,17 @@ class DeliveryPlanServiceTest {
         var detail = new OrderDetailFetcher.OrderDetailInfo(); detail.buyNum = 0;
         when(context.getBean(OrderDetailFetcher.class).fetch(1L,"goods","order")).thenReturn(detail);
         assertThrows(BusinessException.class, () -> plans.prepare(1L,"goods","order",null,null,true));
+        verifyNoInteractions(resolver);
+    }
+    @Test void protectionStopsBeforeStockReservationAndAppliesToRetry() throws Exception {
+        var guard=context.getBean(DeliveryProtectionService.class);
+        doThrow(new BusinessException("blocked")).when(guard).check(any(),any(),any(),any());
+        assertThrows(BusinessException.class,()->plans.prepare(1L,"goods","order",null,null,true));
+        verifyNoInteractions(resolver);verify(orders,never()).saveDeliveryPayload(any(),any(),any());
+        var existing=new XianyuGoodsOrder();existing.setId(10L);existing.setXyGoodsId("goods");existing.setBuyerUserId("buyer");
+        existing.setDeliveryPayload(new ObjectMapper().writeValueAsString(new DeliveryPlanService.Plan(List.of("RESERVED"),List.of(),false)));
+        when(orders.selectByAccountIdAndOrderId(1L,"order")).thenReturn(existing);
+        assertThrows(BusinessException.class,()->plans.prepare(1L,"goods","order",null,null,true));
         verifyNoInteractions(resolver);
     }
 }

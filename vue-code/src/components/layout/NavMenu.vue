@@ -45,6 +45,7 @@ const onSelect = (index: string) => {
       <svg style="width:18px;height:18px;margin-right:8px;flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
       <span>自动发货</span>
     </router-link>
+    <router-link to="/automation" class="nav-menu-item" active-class="nav-menu-item--active" @click="onSelect('/automation')"><span style="width:18px;margin-right:8px;flex-shrink:0">🛡️</span><span>运营与发货保护</span></router-link>
     <router-link to="/buyer-interaction" class="nav-menu-item" active-class="nav-menu-item--active" @click="onSelect('/buyer-interaction')">
       <svg style="width:18px;height:18px;margin-right:8px;flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg>
       <span>买家互动</span>

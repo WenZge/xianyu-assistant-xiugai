@@ -53,97 +53,65 @@ public class ItemDetailUtils {
         }
     }
 
+    /** 兼容卖家和买家接口；ID 保留原字符串，不转换为浮点数或 long。 */
     public static List<XianyuGoodsSku> extractSkuList(String detailJson) {
-        List<XianyuGoodsSku> result = new ArrayList<>();
-        if (detailJson == null || detailJson.isEmpty()) {
-            return result;
+        java.util.LinkedHashMap<String, XianyuGoodsSku> result = new java.util.LinkedHashMap<>();
+        if (detailJson == null || detailJson.isBlank()) return new ArrayList<>();
+        try { collectSkus(objectMapper.readTree(detailJson), 0, result); }
+        catch (Exception e) { log.warn("解析SKU失败: {}", e.getMessage()); }
+        return new ArrayList<>(result.values());
+    }
+
+    private static String firstText(JsonNode node, String... keys) {
+        for (String key : keys) {
+            JsonNode value = node.get(key);
+            if (value != null && value.isValueNode() && !value.isNull() && !value.asText().isBlank()) return value.asText().trim();
         }
+        return "";
+    }
 
-        try {
-            JsonNode rootNode = objectMapper.readTree(detailJson);
-
-            JsonNode itemDONode = rootNode.get("itemDO");
-            if (itemDONode == null || itemDONode.isNull()) {
-                JsonNode dataNode = rootNode.get("data");
-                if (dataNode != null && !dataNode.isNull()) {
-                    itemDONode = dataNode.get("itemDO");
-                }
-            }
-
-            if (itemDONode == null || itemDONode.isNull()) {
-                log.warn("未找到itemDO字段，无法解析SKU");
-                return result;
-            }
-
-            JsonNode skuListNode = itemDONode.get("skuList");
-            if (skuListNode == null || !skuListNode.isArray()) {
-                skuListNode = itemDONode.get("idleItemSkuList");
-            }
-
-            if (skuListNode == null || !skuListNode.isArray() || skuListNode.size() == 0) {
-                log.info("商品无SKU数据");
-                return result;
-            }
-
-            for (JsonNode skuNode : skuListNode) {
-                XianyuGoodsSku sku = new XianyuGoodsSku();
-
-                if (skuNode.has("skuId") && !skuNode.get("skuId").isNull()) {
-                    sku.setSkuId(String.valueOf(skuNode.get("skuId").asLong()));
-                }
-                if (skuNode.has("price") && !skuNode.get("price").isNull()) {
-                    sku.setPrice(skuNode.get("price").asInt());
-                }
-                if (skuNode.has("quantity") && !skuNode.get("quantity").isNull()) {
-                    sku.setQuantity(skuNode.get("quantity").asInt());
-                }
-
-                JsonNode propertyListNode = skuNode.get("propertyList");
-                if (propertyListNode != null && propertyListNode.isArray() && propertyListNode.size() > 0) {
-                    StringBuilder propertyTextBuilder = new StringBuilder();
-                    StringBuilder valueTextBuilder = new StringBuilder();
-                    for (JsonNode propNode : propertyListNode) {
-                        if (propNode.has("propertyText") && !propNode.get("propertyText").isNull()) {
-                            String propText = propNode.get("propertyText").asText();
-                            String valText = propNode.has("valueText") ? propNode.get("valueText").asText() : "";
-                            if (propertyTextBuilder.length() > 0) {
-                                propertyTextBuilder.append(" ");
-                                valueTextBuilder.append(" ");
-                            }
-                            propertyTextBuilder.append(propText).append(":").append(valText);
-                            valueTextBuilder.append(valText);
+    private static void collectSkus(JsonNode node, int depth, java.util.Map<String, XianyuGoodsSku> result) {
+        if (node == null || depth > 8 || result.size() >= 1000) return;
+        if (node.isArray()) {
+            for (JsonNode row : node) {
+                String id = firstText(row, "skuId", "inventoryId");
+                if (!id.isEmpty() && !"0".equals(id) && !"-1".equals(id)) {
+                    JsonNode props = row.path("propertyList");
+                    if (!props.isArray() || props.isEmpty()) props = row.path("properties");
+                    List<String> names = new ArrayList<>(), labels = new ArrayList<>();
+                    if (props.isArray()) for (JsonNode prop : props) {
+                        String value = prop.isTextual() ? prop.asText().trim() : firstText(prop, "actualValueText", "valueText", "value");
+                        String label = firstText(prop, "propertyText", "name");
+                        if (!value.isEmpty()) { names.add(value); labels.add(label.isEmpty() ? value : label + ":" + value); }
+                    }
+                    String name = names.isEmpty() ? firstText(row, "name", "skuDesc", "valueText") : String.join(" / ", names);
+                    if (!name.isEmpty()) {
+                        XianyuGoodsSku sku = new XianyuGoodsSku();
+                        sku.setSkuId(id); sku.setValueText(name);
+                        sku.setPropertyText(labels.isEmpty() ? name : String.join(" / ", labels));
+                        if (props.isArray() && !props.isEmpty()) {
+                            JsonNode first = props.get(0);
+                            if (first.path("propertyId").canConvertToInt()) sku.setPropertyId(first.path("propertyId").asInt());
+                            if (first.path("valueId").canConvertToInt()) sku.setValueId(first.path("valueId").asInt());
+                            if (first.path("propertySortOrder").canConvertToInt()) sku.setPropertySortOrder(first.path("propertySortOrder").asInt());
+                            if (first.path("valueSortOrder").canConvertToInt()) sku.setValueSortOrder(first.path("valueSortOrder").asInt());
                         }
-                    }
-                    sku.setPropertyText(propertyTextBuilder.toString());
-                    sku.setValueText(valueTextBuilder.toString());
-
-                    JsonNode firstProp = propertyListNode.get(0);
-                    if (firstProp.has("propertyId") && !firstProp.get("propertyId").isNull()) {
-                        sku.setPropertyId(firstProp.get("propertyId").asInt());
-                    }
-                    if (firstProp.has("valueId") && !firstProp.get("valueId").isNull()) {
-                        sku.setValueId(firstProp.get("valueId").asInt());
-                    }
-                    if (firstProp.has("propertySortOrder") && !firstProp.get("propertySortOrder").isNull()) {
-                        sku.setPropertySortOrder(firstProp.get("propertySortOrder").asInt());
-                    }
-                    if (firstProp.has("valueSortOrder") && !firstProp.get("valueSortOrder").isNull()) {
-                        sku.setValueSortOrder(firstProp.get("valueSortOrder").asInt());
+                        if (row.path("price").canConvertToInt()) sku.setPrice(row.path("price").asInt());
+                        if (row.path("quantity").canConvertToInt()) sku.setQuantity(row.path("quantity").asInt());
+                        result.putIfAbsent(id, sku);
                     }
                 }
-
-                if (skuNode.has("features") && !skuNode.get("features").isNull()) {
-                    sku.setFeatures(skuNode.get("features").toString());
-                }
-
-                result.add(sku);
+                collectSkus(row, depth + 1, result);
             }
-
-            log.info("解析SKU列表成功，数量: {}", result.size());
-            return result;
-        } catch (Exception e) {
-            log.error("解析商品SKU失败: {}", e.getMessage());
-            return result;
+        } else if (node.isObject()) {
+            // 商品详情同时可能包含推荐商品，仅解析当前商品的 itemDO / 明确的 SKU 数组。
+            if (node.path("itemDO").isObject()) { collectSkus(node.get("itemDO"), depth + 1, result); return; }
+            if (node.path("skuList").isArray() || node.path("idleItemSkuList").isArray()) {
+                collectSkus(node.get("skuList"), depth + 1, result);
+                collectSkus(node.get("idleItemSkuList"), depth + 1, result);
+                return;
+            }
+            node.elements().forEachRemaining(child -> collectSkus(child, depth + 1, result));
         }
     }
 
@@ -194,7 +162,7 @@ public class ItemDetailUtils {
                     prop.setPropertyText(propNode.has("propertyText") ? propNode.get("propertyText").asText() : "");
                     prop.setPropertySortOrder(propNode.has("propertySortOrder") ? propNode.get("propertySortOrder").asInt() : 0);
                     prop.setValueId(valueId);
-                    prop.setValueText(propNode.has("valueText") ? propNode.get("valueText").asText() : "");
+                    prop.setValueText(firstText(propNode, "actualValueText", "valueText", "value"));
                     prop.setValueSortOrder(propNode.has("valueSortOrder") ? propNode.get("valueSortOrder").asInt() : 0);
                     result.add(prop);
                 }

@@ -44,7 +44,8 @@ public class GoodsSkuServiceImpl implements GoodsSkuService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void saveSkus(String xyGoodsId, Long xianyuAccountId, List<XianyuGoodsSku> skuList) {
-        deleteByXyGoodsId(xyGoodsId);
+        if (skuList == null || skuList.isEmpty()) return;
+        goodsSkuMapper.delete(new LambdaQueryWrapper<XianyuGoodsSku>().eq(XianyuGoodsSku::getXyGoodsId, xyGoodsId).eq(XianyuGoodsSku::getXianyuAccountId, xianyuAccountId));
 
         String now = getCurrentTimeString();
         for (XianyuGoodsSku sku : skuList) {

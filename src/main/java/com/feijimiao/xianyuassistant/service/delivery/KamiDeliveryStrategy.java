@@ -68,7 +68,7 @@ public class KamiDeliveryStrategy implements DeliveryContentStrategy {
             try {
                 Long configId = Long.parseLong(configIdStr.trim());
                 var warehouse = kamiConfigService.getConfig(configId);
-                if (warehouse == null || !accountId.equals(warehouse.getXianyuAccountId()))
+                if (warehouse == null || (!"SHARED".equals(warehouse.getScope()) && !accountId.equals(warehouse.getXianyuAccountId())))
                     throw new com.feijimiao.xianyuassistant.exception.BusinessException("卡密仓库不属于当前闲鱼账号");
                 if (kamiDeliveryTemplate != null && !kamiDeliveryTemplate.isBlank() && !kamiDeliveryTemplate.contains("{kmKey}"))
                     throw new com.feijimiao.xianyuassistant.exception.BusinessException("卡密文案缺少{kmKey}占位符");

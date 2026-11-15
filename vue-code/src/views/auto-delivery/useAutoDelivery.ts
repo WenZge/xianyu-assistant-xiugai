@@ -7,6 +7,7 @@ import {
   saveOrUpdateAutoDeliveryConfig,
   getAutoDeliveryConfigsByGoodsId,
   getGoodsSkuList,
+  recognizeGoodsSku,
   type AutoDeliveryConfig,
   type SaveAutoDeliveryConfigReq,
   type GetAutoDeliveryConfigReq,
@@ -62,6 +63,23 @@ export function useAutoDelivery() {
   const selectedGoods = ref<GoodsItemWithConfig | null>(null)
   const currentConfig = ref<AutoDeliveryConfig | null>(null)
 
+  const recognizing = ref(false)
+  const recognitionMessage = ref('')
+  const recognizeSku = async (source: 'seller' | 'buyer') => {
+    if (!selectedGoods.value || !selectedAccountId.value || recognizing.value) return
+    const goods = selectedGoods.value, account = selectedAccountId.value
+    recognizing.value = true; recognitionMessage.value = ''
+    try {
+      const result = await recognizeGoodsSku(account, goods.item.xyGoodId, source)
+      if (selectedGoods.value !== goods || selectedAccountId.value !== account) return
+      if (result.code !== 200 && result.code !== 0) throw new Error(result.msg || '识别失败')
+      await selectGoods(goods)
+      goods.item.skuCount = result.data?.length || 0
+      recognitionMessage.value = '已识别 ' + goods.item.skuCount + ' 个规格，请逐个选择并保存发货配置。'
+    } catch (e: any) {
+      if (selectedGoods.value === goods && selectedAccountId.value === account) recognitionMessage.value = e.message || '识别失败，请稍后重试'
+    } finally { recognizing.value = false }
+  }
   const skuList = ref<GoodsSku[]>([])
   const selectedSkuId = ref<string | null>(null)
   const skuConfigs = ref<Map<string, AutoDeliveryConfig>>(new Map())
@@ -91,7 +109,7 @@ export function useAutoDelivery() {
     set: (val: string) => { configForm.value.kamiConfigIds = val }
   })
 
-  const hasMultipleSku = computed(() => skuList.value.length > 1)
+  const hasMultipleSku = computed(() => skuList.value.length > 0)
 
   const recordsLoading = ref(false)
   const deliveryRecords = ref<any[]>([])
@@ -336,6 +354,7 @@ export function useAutoDelivery() {
   }
 
   const selectGoods = async (goods: GoodsItemWithConfig) => {
+    recognitionMessage.value = ''
     selectedGoods.value = goods
     selectedSkuId.value = null
     currentConfig.value = null
@@ -347,7 +366,7 @@ export function useAutoDelivery() {
     await loadSkuList()
     if (selectedGoods.value !== goods || selectedAccountId.value !== accountId) return
 
-    if (skuList.value.length > 1) {
+    if (skuList.value.length > 0) {
       selectedSkuId.value = skuList.value[0]?.skuId || null
       await loadAllSkuConfigs()
     } else {
@@ -750,6 +769,7 @@ export function useAutoDelivery() {
   })
 
   return {
+    recognizeSku, recognizing, recognitionMessage,
     loading,
     saving,
     configLoading,

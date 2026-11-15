@@ -198,7 +198,7 @@ public class OrderDetailFetcher {
         }
 
         // 兜底从merchantItemVO解析规格
-        if (info.skuId == null) {
+        if (info.skuName == null) {
             Object merchantItemVO = module.get("merchantItemVO");
             if (merchantItemVO instanceof Map) {
                 @SuppressWarnings("unchecked")
@@ -214,7 +214,7 @@ public class OrderDetailFetcher {
                             log.info("【账号{}】从merchantItemVO获取规格: value={}", accountId, value);
                             info.skuName = (String) value;
                             String skuId = skuResolver.resolveSkuIdByText(accountId, xyGoodsId, (String) value);
-                            if (skuId != null) {
+                            if (skuId != null && info.skuId == null) {
                                 info.skuId = skuId;
                                 break;
                             }

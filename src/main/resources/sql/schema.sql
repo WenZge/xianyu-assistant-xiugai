@@ -369,6 +369,7 @@ VALUES ('email_notify_cookie_expire_enabled', '0', 'Cookie过期邮件通知开�
 -- 卡密配置表
 CREATE TABLE IF NOT EXISTS xianyu_kami_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scope VARCHAR(16) NOT NULL DEFAULT 'PRIVATE',
     xianyu_account_id BIGINT NOT NULL,                -- 闲鱼账号ID
     alias_name VARCHAR(200),                          -- 别名
     alert_enabled TINYINT DEFAULT 0,                  -- 预警开关：0-关闭，1-开启
@@ -552,3 +553,42 @@ CREATE TABLE IF NOT EXISTS xianyu_buyer_interaction_record (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_buyer_interaction_once ON xianyu_buyer_interaction_record(xianyu_account_id, order_id, action);
 CREATE INDEX IF NOT EXISTS idx_buyer_interaction_due ON xianyu_buyer_interaction_record(state, next_run_at);
+
+-- 账号自动擦亮与发货保护（新功能默认关闭，黑名单仅在存在匹配记录时生效）
+CREATE TABLE IF NOT EXISTS xianyu_automation_config (
+    xianyu_account_id INTEGER PRIMARY KEY,
+    polish_enabled INTEGER NOT NULL DEFAULT 0,
+    polish_interval_hours INTEGER NOT NULL DEFAULT 24,
+    next_polish_at BIGINT NOT NULL DEFAULT 0,
+    last_polish_at BIGINT NOT NULL DEFAULT 0,
+    running_until BIGINT NOT NULL DEFAULT 0,
+    polish_result TEXT DEFAULT '尚未执行',
+    blacklist_enabled INTEGER NOT NULL DEFAULT 1,
+    block_low_credit INTEGER NOT NULL DEFAULT 0,
+    rating_threshold INTEGER NOT NULL DEFAULT 0,
+    block_repeat_account INTEGER NOT NULL DEFAULT 0,
+    block_repeat_global INTEGER NOT NULL DEFAULT 0,
+    same_goods_only INTEGER NOT NULL DEFAULT 1,
+    block_unconfirmed INTEGER NOT NULL DEFAULT 0,
+    unconfirmed_threshold INTEGER NOT NULL DEFAULT 1,
+    excluded_goods TEXT DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS xianyu_buyer_blacklist (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    xianyu_account_id BIGINT,
+    buyer_id VARCHAR(30) NOT NULL,
+    buyer_name VARCHAR(100),
+    reason VARCHAR(200),
+    goods_id VARCHAR(30) DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS idx_blacklist_buyer ON xianyu_buyer_blacklist(buyer_id, xianyu_account_id);
+CREATE TABLE IF NOT EXISTS xianyu_polish_record (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    xianyu_account_id BIGINT NOT NULL,
+    goods_id VARCHAR(64),
+    success INTEGER NOT NULL,
+    message TEXT,
+    created_at BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_polish_record_account ON xianyu_polish_record(xianyu_account_id, created_at);

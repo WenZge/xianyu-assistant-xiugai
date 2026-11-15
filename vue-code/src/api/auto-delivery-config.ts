@@ -126,3 +126,5 @@ export function getGoodsSkuDetail(xyGoodsId: string) {
     params: { xyGoodsId }
   });
 }
+
+export const recognizeGoodsSku = (xianyuAccountId: number, xyGoodsId: string, source: 'seller' | 'buyer') => request<GoodsSku[]>({url:'/goods-sku/recognize',method:'POST',params:{xianyuAccountId,xyGoodsId,source}})

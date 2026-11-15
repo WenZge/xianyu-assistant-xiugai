@@ -20,10 +20,11 @@ public class DeliveryPlanService {
     private final DeliveryConfigSelector selector;
     private final DeliveryStrategyResolver resolver;
     private final XianyuGoodsOrderMapper orders;
+    private final DeliveryProtectionService protection;
     private final ObjectMapper json = new ObjectMapper();
     public DeliveryPlanService(OrderDetailFetcher fetcher, DeliveryConfigSelector selector,
-                               DeliveryStrategyResolver resolver, XianyuGoodsOrderMapper orders) {
-        this.fetcher = fetcher; this.selector = selector; this.resolver = resolver; this.orders = orders;
+                               DeliveryStrategyResolver resolver, XianyuGoodsOrderMapper orders, DeliveryProtectionService protection) {
+        this.fetcher = fetcher; this.selector = selector; this.resolver = resolver; this.orders = orders; this.protection = protection;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -32,6 +33,13 @@ public class DeliveryPlanService {
         var existing = orders.selectByAccountIdAndOrderId(accountId, orderId);
         if (existing != null && existing.getDeliveryPayload() != null && !existing.getDeliveryPayload().isBlank()) {
             try {
+                if (!goodsId.equals(existing.getXyGoodsId())) throw new BusinessException("订单商品与当前商品不一致");
+                String buyerId = existing.getBuyerUserId();
+                if (buyerId == null || buyerId.isBlank()) {
+                    var detail = fetcher.fetch(accountId, goodsId, orderId);
+                    buyerId = detail == null ? null : detail.buyerUserId;
+                }
+                protection.check(accountId, goodsId, orderId, buyerId);
                 Plan plan = json.readValue(existing.getDeliveryPayload(), Plan.class);
                 checkLength(plan, offline);
                 return plan;
@@ -43,6 +51,7 @@ public class DeliveryPlanService {
         if (detail.xyGoodsId != null && !goodsId.equals(detail.xyGoodsId)) throw new BusinessException("订单商品与当前商品不一致，已停止发货");
         if (detail.buyNum == null || detail.buyNum < 1 || detail.buyNum > 100)
             throw new BusinessException("订单购买数量缺失或超出1至100件，请人工核实");
+        protection.check(accountId, goodsId, orderId, detail.buyerUserId);
         var config = selector.select(accountId, goodsId, detail.skuId);
         var context = DeliveryContext.builder().accountId(accountId).xyGoodsId(goodsId).orderId(orderId)
                 .sId(sid).buyerUserName(detail.buyerUserName != null ? detail.buyerUserName : buyerName)
@@ -64,7 +73,7 @@ public class DeliveryPlanService {
             existing.setPnmId("api_" + orderId); existing.setSid(sid); existing.setState(0); existing.setConfirmState(0);
             orders.insert(existing);
         }
-        if (sid != null && detail.buyerUserId != null) orders.updateBuyerSession(existing.getId(), sid, detail.buyerUserId, detail.buyerUserName);
+        if (detail.buyerUserId != null) orders.updateBuyerSession(existing.getId(), sid != null ? sid : existing.getSid(), detail.buyerUserId, detail.buyerUserName);
         orders.updateOrderDetail(existing.getId(), detail.buyerUserName, detail.orderCreateTime, detail.paySuccessTime,
                 detail.consignTime, detail.skuName, detail.goodsTitle, detail.totalPrice, detail.buyNum);
         try { orders.saveDeliveryPayload(existing.getId(), json.writeValueAsString(plan), plan.text()); }

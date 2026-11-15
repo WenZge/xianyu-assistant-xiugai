@@ -175,11 +175,7 @@ public class ItemDetailSyncServiceImpl implements ItemDetailSyncService {
                 if (!propertyList.isEmpty()) {
                     goodsSkuPropertyService.saveProperties(itemId, accountId, propertyList);
                 }
-            } else {
-                goodsSkuService.deleteByXyGoodsId(itemId);
-                goodsSkuPropertyService.deleteByXyGoodsId(itemId);
-                goodsInfoService.updateSkuCount(itemId, 0);
-            }
+            } // 空响应可能是接口权限或风控，保留已经识别的规格。
 
             log.debug("商品详情同步成功: itemId={}", itemId);
             return true;

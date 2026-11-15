@@ -26,6 +26,7 @@ const goodsPanelCollapsed = ref(true)
 const isDesktopCollapsed = computed(() => !isMobile.value && goodsPanelCollapsed.value)
 
 const {
+  recognizeSku, recognizing, recognitionMessage,
   saving,
   configLoading,
   accounts,
@@ -362,6 +363,16 @@ onMounted(() => {
             </div>
           </div>
 
+          <div class="ad__config-section">
+            <div class="ad__config-section-title">SKU 多规格识别</div>
+            <p class="ad__textarea-hint">先从卖家接口识别规格，再为每个 SKU 设置文本或卡密。未识别到规格不代表商品只有一种规格。</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">
+              <button class="ad__sku-tab" :disabled="recognizing || saving || configLoading" @click="recognizeSku('seller')">{{ recognizing ? '识别中…' : '识别 SKU（卖家接口）' }}</button>
+              <button class="ad__sku-tab" :disabled="recognizing || saving || configLoading" @click="recognizeSku('buyer')">尝试买家接口</button>
+            </div>
+            <p v-if="recognitionMessage" role="status" class="ad__textarea-hint">{{recognitionMessage}}</p>
+            <p v-if="!skuList.length" class="ad__textarea-hint">尚未识别规格。请点击上方按钮；失败时会保留已有配置。</p>
+          </div>
           <!-- SKU Selector -->
           <div v-if="hasMultipleSku" class="ad__config-section ad__config-section--no-pad-bottom">
             <div class="ad__config-section-title">选择规格</div>
@@ -376,7 +387,7 @@ onMounted(() => {
                 @click="selectedSkuId = sku.skuId || null; handleSkuChange()"
               >
                 <span class="ad__sku-tab__name">{{ sku.valueText || sku.propertyText || `规格${sku.skuId}` }} · {{ skuConfigs.has(sku.skuId || '') ? '已配置' : '未配置' }}</span>
-                <span class="ad__sku-tab__price">¥{{ (sku.price / 100).toFixed(2) }}</span>
+                <span v-if="sku.price != null" class="ad__sku-tab__price">¥{{ (sku.price / 100).toFixed(2) }}</span>
               </button>
             </div>
           </div>
@@ -464,7 +475,7 @@ onMounted(() => {
                     :key="opt.id"
                     :value="String(opt.id)"
                   >
-                    {{ opt.aliasName || `配置#${opt.id}` }}
+                    {{ opt.aliasName || `配置#${opt.id}` }} · {{ opt.scope === 'SHARED' ? '通用' : '账号私有' }}
                   </option>
                 </select>
                 <div v-if="kamiConfigOptions.length === 0" style="color: rgba(28,28,30,.55); font-size: 13px; margin-top: 8px;">

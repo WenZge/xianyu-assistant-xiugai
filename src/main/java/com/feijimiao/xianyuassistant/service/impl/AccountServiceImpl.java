@@ -30,6 +30,13 @@ import java.util.Objects;
 @Slf4j
 @Service
 public class AccountServiceImpl implements AccountService {
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate automationDb;
+    private void automationCleanup(Long id) {
+        automationDb.update("DELETE FROM xianyu_automation_config WHERE xianyu_account_id=?", id);
+        automationDb.update("DELETE FROM xianyu_buyer_blacklist WHERE xianyu_account_id=?", id);
+        automationDb.update("DELETE FROM xianyu_polish_record WHERE xianyu_account_id=?", id);
+    }
+
 
     @Autowired
     private XianyuAccountMapper accountMapper;
@@ -495,6 +502,8 @@ public class AccountServiceImpl implements AccountService {
             int cookieCount = cookieMapper.delete(cookieQuery);
             log.info("删除Cookie数据: accountId={}, 删除数量={}", accountId, cookieCount);
             
+            // 同账号自动化状态和私有黑名单随账号清理；通用黑名单与通用库存保留。
+            automationCleanup(accountId);
             buyerInteractionConfigMapper.deleteById(accountId);
             buyerInteractionRecordMapper.delete(new LambdaQueryWrapper<com.feijimiao.xianyuassistant.entity.XianyuBuyerInteractionRecord>()
                     .eq(com.feijimiao.xianyuassistant.entity.XianyuBuyerInteractionRecord::getXianyuAccountId, accountId));

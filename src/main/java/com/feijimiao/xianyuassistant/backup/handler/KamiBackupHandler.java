@@ -45,17 +45,19 @@ public class KamiBackupHandler implements DataBackupHandler {
         Map<Long, String> configIdToUnb = new HashMap<>();
         for (XianyuKamiConfig config : kamiConfigs) {
             XianyuAccount account = accountMapper.selectById(config.getXianyuAccountId());
-            if (account == null) continue;
+            boolean shared = "SHARED".equals(config.getScope());
+            if (account == null && !shared) continue;
 
             Map<String, Object> map = new LinkedHashMap<>();
-            map.put("unb", account.getUnb());
+            map.put("unb", shared ? "__SHARED__" : account.getUnb());
+            map.put("scope", shared ? "SHARED" : "PRIVATE");
             map.put("aliasName", config.getAliasName());
             map.put("alertEnabled", config.getAlertEnabled());
             map.put("alertThresholdType", config.getAlertThresholdType());
             map.put("alertThresholdValue", config.getAlertThresholdValue());
             map.put("alertEmail", config.getAlertEmail());
             configList.add(map);
-            configIdToUnb.put(config.getId(), account.getUnb());
+            configIdToUnb.put(config.getId(), shared ? "__SHARED__" : account.getUnb());
         }
 
         List<Map<String, Object>> itemList = new ArrayList<>();
@@ -100,7 +102,8 @@ public class KamiBackupHandler implements DataBackupHandler {
                     String aliasName = (String) map.get("aliasName");
                     if (unb == null || aliasName == null) continue;
 
-                    Long accountId = unbToAccountId.get(unb);
+                    boolean shared = "SHARED".equals(map.get("scope"));
+                    Long accountId = shared ? unbToAccountId.values().stream().findFirst().orElse(null) : unbToAccountId.get(unb);
                     if (accountId == null) {
                         log.warn("[KamiBackup] 跳过配置: 找不到账号, unb={}, aliasName={}", unb, aliasName);
                         skippedCount++;
@@ -108,11 +111,13 @@ public class KamiBackupHandler implements DataBackupHandler {
                     }
 
                     LambdaQueryWrapper<XianyuKamiConfig> wrapper = new LambdaQueryWrapper<>();
-                    wrapper.eq(XianyuKamiConfig::getXianyuAccountId, accountId)
-                           .eq(XianyuKamiConfig::getAliasName, aliasName);
+                    wrapper.eq(XianyuKamiConfig::getScope, shared ? "SHARED" : "PRIVATE")
+                           .eq(!shared, XianyuKamiConfig::getXianyuAccountId, accountId)
+                           .eq(XianyuKamiConfig::getAliasName, aliasName).last("LIMIT 1");
                     XianyuKamiConfig existing = kamiConfigMapper.selectOne(wrapper);
 
                     XianyuKamiConfig config = new XianyuKamiConfig();
+                    config.setScope(shared ? "SHARED" : "PRIVATE");
                     config.setXianyuAccountId(accountId);
                     config.setAliasName(aliasName);
                     config.setAlertEnabled(map.get("alertEnabled") != null ? ((Number) map.get("alertEnabled")).intValue() : null);

@@ -68,6 +68,7 @@ const pageTitleMap: Record<string, string> = {
   '/auto-delivery': '自动发货',
 
   '/auto-reply': '自动回复',
+  '/automation': '运营与发货保护',
   '/buyer-interaction': '买家互动',
   '/operation-log': '操作日志',
   '/settings': '系统设置'
@@ -83,6 +84,7 @@ const pageIconMap: Record<string, any> = {
   '/auto-delivery': markRaw(IconRobot),
 
   '/auto-reply': markRaw(IconChat),
+  '/automation': markRaw(IconChat),
   '/buyer-interaction': markRaw(IconChat),
   '/operation-log': markRaw(IconLog),
   '/settings': markRaw(IconShield)
