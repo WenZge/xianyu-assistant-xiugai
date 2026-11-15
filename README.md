@@ -109,6 +109,8 @@
 
 从 Git 拉取源码部署可使用根目录的 `Dockerfile` 和 `compose.yaml`，操作见 [Git 源码部署说明](docs/GIT_DOCKERMAN_DEPLOY.md)。
 
+需要在 DockerMan 直接拉取修改版镜像时，先按 [镜像发布与直接拉取说明](docs/DIRECT_IMAGE_PULL.md) 使用 GitHub Actions 发布到 GHCR。
+
 ### 方式一：Docker部署（推荐）
 
 #### 环境要求
