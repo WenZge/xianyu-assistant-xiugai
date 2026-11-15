@@ -1,0 +1,26 @@
+services:
+  xianyu-assistant:
+    image: xianyu-assistant:sku-interaction
+    build:
+      context: .
+    platform: linux/amd64
+    container_name: xianyu-assistant
+    restart: unless-stopped
+    init: true
+    shm_size: 256mb
+    ports:
+      - "12400:12400"
+    environment:
+      TZ: Asia/Shanghai
+      SERVER_PORT: "12400"
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx512m -Dfile.encoding=UTF-8"
+      AI_ENABLED: "false"
+    volumes:
+      - ./dbdata:/app/dbdata
+      - ./logs:/app/logs
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    stop_grace_period: 30s
